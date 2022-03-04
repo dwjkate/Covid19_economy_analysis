@@ -1,0 +1,136 @@
+---
+title: "Project Plan"
+author: "Kate, Marc, Mergen, Mune"
+date: "3/17/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+**App Title: Covid Era Economic Tracker**
+
+**Description of the problem to be analyzed in the Shiny App:**
+
+
+We will be analyzing how COVID-19 positive cases impacted the economy, focusing on specific indicators such as consumer spending, small business open, and employment. For example, we are going to discover how the number of positive COVID-19 cases influenced consumer spending across industries. We can also reveal how the COVID-19 positive cases impacted small businesses or the change of employment.
+
+
+**Proposed data sources:**
+
+The proposed data sources are all compiled via the [Opportunity Insights Economic Tracker](https://github.com/OpportunityInsights/EconomicTracker) 
+
+1. Consumer Spending:
+
++ Original Source: [Affinity Solutions](https://raw.githubusercontent.com/OpportunityInsights/EconomicTracker/main/data/Affinity%20-%20State%20-%20Daily.csv)
+
+
+2. Small Business Open:
+
++ Original Source: [Womply](https://raw.githubusercontent.com/OpportunityInsights/EconomicTracker/main/data/Womply%20-%20State%20-%20Daily.csv)
+
+3. Employment
+
++ Original Source: [Paychex, Intuit, Earnin, Kronos](https://github.com/OpportunityInsights/EconomicTracker/blob/main/data/Employment%20Combined%20-%20State%20-%20Daily.csv) 
+
+4. COVID-19 Cases, Deaths and Tests
+
++ Original Source: [New York Times COVID-19 Data, The COVID Tracking Project](https://github.com/OpportunityInsights/EconomicTracker/blob/main/data/COVID%20-%20State%20-%20Daily.csv)
+
+
+**Concept of the Shiny App**
+
+* Overall descriptive statistics and graphs of our variables. The user can select 
+which variables to look at by selecting from a drop-down menu.
+
+* Graphical Tracker of cases by the individual state or the whole of U.S. 
+The user may filter to see individual states by selecting from a drop-down menu.
+The user may simulate the data through time order. 
+
+* Brief EDA, the user can flip through the graphs and summaries.
+
+* Correlation Matrix Table.
+
+* Statistical Analysis. Regression output will always be shown while the User 
+can tick a box to see in-depth analysis such as the Anova table, Chi-Square Table, 
+etc.
+
+* Graphical Representation of the Statistical Analysis, Scatter-plot with 
+Regression Line, side-by-side comparison of regression models if applicable.
+
+* Regression Diagnostics shown through Tests and Graphs. The user can select 
+which test to see from a menu along with its accompanying graph 
+(e.g. Constant Variance Test with Residual vs Fitted Value plot).
+
+1. Overall Layout:
++ Focus on User Freedom and Choice
++ Step-by-step statistical analysis
++ Time series tracker with predictive simulation and user-choice capabilities
+
+
+
+
+
+**Allocation of Responsibilities for the team**
+
+Github Repo Manager - Marc
+
+Data Tidying & Cleaning - Kate, Mune 
+
+Statistical Analysis - Mergen, Marc
+
+EDA - Kate, Mune
+
+Vignette - Marc 
+
+Shiny App - Mergen, Kate, Mune, Marc
+
+
+
+**Project Steps/Schedule**
+
+ - Mar 10th: Discussing about possible topics
+ - Mar 12th: Deciding topic and Researching the dataset
+ - Mar 17th: Creating GitHub Repo and Reviewing version control process
+ - Mar 19th: Finishing up the Project Plan
+ - Mar 23th: Submitting the Project Plan
+ - Mar 24th: Reviewing the dataset in detail and allocating cleaning up part
+ - Mar 26th: Checking the cleaning progress
+ - Mar 31th: Checking the cleaning progress
+ - Apr 2nd: Creating EDA for the initial analysis
+ - Apr 7th: Building EDA output into Shiny App
+ - Apr 9th: Statistical Analysis
+ - Apr 14th: Statistical Analysis output
+ - Apr 16th: Statistical Analysis output / Vignette
+ - Apr 21th: Statistical Analysis output / Vignette
+ - Apr 23th: Building Statistical Analysis output into Shiny App
+ - Apr 28th: Shiny App
+ - Apr 30th: Finishing up Shiny App
+ - May 4th: Presentation Day
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

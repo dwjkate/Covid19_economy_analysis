@@ -1,0 +1,61 @@
+GeoFips,GeoName,2019
+0,United States,44276
+1000,Alabama,35490
+2000,Alaska,50701
+4000,Arizona,38044
+5000,Arkansas,35026
+6000,California,49291
+8000,Colorado,46362
+9000,Connecticut,54786
+10000,Delaware,45827
+11000,District of Columbia,65352
+12000,Florida,43018
+13000,Georgia,38076
+15000,Hawaii,49435
+16000,Idaho,37183
+17000,Illinois,46198
+18000,Indiana,39145
+19000,Iowa,39324
+20000,Kansas,38898
+21000,Kentucky,36348
+22000,Louisiana,37250
+23000,Maine,47351
+24000,Maryland,47529
+25000,Massachusetts,56231
+26000,Michigan,41816
+27000,Minnesota,47159
+28000,Mississippi,32329
+29000,Missouri,41279
+30000,Montana,42400
+31000,Nebraska,41789
+32000,Nevada,43166
+33000,New Hampshire,54585
+34000,New Jersey,54216
+35000,New Mexico,37158
+36000,New York,54890
+37000,North Carolina,37099
+38000,North Dakota,47902
+39000,Ohio,42707
+40000,Oklahoma,35618
+41000,Oregon,43707
+42000,Pennsylvania,46502
+44000,Rhode Island,47045
+45000,South Carolina,36073
+46000,South Dakota,46117
+47000,Tennessee,37582
+48000,Texas,40552
+49000,Utah,39514
+50000,Vermont,49377
+51000,Virginia,46539
+53000,Washington,48274
+54000,West Virginia,37276
+55000,Wisconsin,43168
+56000,Wyoming,43723
+91000,New England,53985
+92000,Mideast,51630
+93000,Great Lakes,43006
+94000,Plains,42696
+95000,Southeast,39283
+96000,Southwest,39491
+97000,Rocky Mountain,42804
+98000,Far West,48426

@@ -1,0 +1,855 @@
+---
+title: "CleanData"
+author: "Group 2"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(cluster)
+library(lmtest)
+library(corrplot)
+```
+
+```{r importing_dataset}
+affinity <- read.csv('https://raw.githubusercontent.com/OpportunityInsights/EconomicTracker/main/data/Affinity%20-%20State%20-%20Daily.csv')
+
+# burning_glass <- read.csv('https://raw.githubusercontent.com/OpportunityInsights/EconomicTracker/main/data/Burning%20Glass%20-%20State%20-%20Weekly.csv')
+
+covid <- read.csv('https://raw.githubusercontent.com/OpportunityInsights/EconomicTracker/main/data/COVID%20-%20State%20-%20Daily.csv')
+
+womply <- read.csv('https://raw.githubusercontent.com/OpportunityInsights/EconomicTracker/main/data/Womply%20-%20State%20-%20Daily.csv')
+
+geoID <- read.csv("https://raw.githubusercontent.com/OpportunityInsights/EconomicTracker/main/data/GeoIDs%20-%20State.csv")
+
+employment <- read.csv("https://raw.githubusercontent.com/OpportunityInsights/EconomicTracker/main/data/Employment%20-%20State%20-%20Daily.csv")
+```
+
+
+```{r}
+affinity %>%
+  rename("All Merchant Catergory" = spend_all,
+         "Art, Entertainment, Recreation" = spend_aer,
+         "Accomodation, Food Service" = spend_acf,
+         "General Merchant, Apparel, Accessories" = spend_apg,
+         "Grocery" = spend_grf,
+         "Healthcare, Social Assistant" = spend_hcs,
+         "transportation_warehousing" = spend_tws,
+         "high_median_income" = spend_all_inchigh,
+         "mid_median_income" = spend_all_incmiddle,
+         "low_median_income" = spend_all_inclow,
+         "retail_w_grocery" = spend_retail_w_grocery,
+         "retail_no_grocery" = spend_retail_no_grocery
+         ) -> consumer_spending
+str(consumer_spending)
+```
+
+```{r}
+# job_posting <- burning_glass %>% 
+#   rename('all' = bg_posts,
+#          'manifacturing' = bg_posts_ss30,
+#          'financial' = bg_posts_ss55,
+#          'professional_service' = bg_posts_ss60,
+#          'education' = bg_posts_ss65,
+#          'leisure' = bg_posts_ss70,
+#          'no_exp' = bg_posts_jz1,
+#          'some_exp' = bg_posts_jz2,
+#          'medium_exp' = bg_posts_jz3,
+#          'considerable_exp' = bg_posts_jz4,
+#          'extensive_exp' = bg_posts_jz5,
+#          'no_some_exp' = bg_posts_jzgrp12,
+#          'med_considerable_extensive_exp' = bg_posts_jzgrp345)
+# 
+# job_posting <- job_posting[order(job_posting$year, job_posting$month, job_posting$day_endofweek),]
+```
+
+```{r}
+small_business_open <- womply %>% 
+  rename('all_small_business' = merchants_all,
+         'high_income_open' = merchants_inchigh,
+         'middle_income_open' = merchants_incmiddle,
+         'low_income_open' = merchants_inclow,
+         'transportation_open' = merchants_ss40,
+         'professional_open' = merchants_ss60,
+         'education_open' = merchants_ss65,
+         'leisure_open' = merchants_ss70,
+         'retail_open' = merchants_retail,
+         'food_accomodation_open' = merchants_food_accommodation,
+         'all_revenue' = revenue_all,
+         'high_income_revenue' = revenue_inchigh,
+         'mid_income_revenue' = revenue_incmiddle,
+         'low_incone_revenue' = revenue_inclow,
+         'transportation_revenue' = revenue_ss40,
+         'professional_revenue' = revenue_ss60,
+         'education_revenue' = revenue_ss65,
+         'leisure_revenue' = revenue_ss70,
+         'retail_revenue' = revenue_retail,
+         'food_accomodation_revenue' = revenue_food_accommodation
+         )
+```
+
+```{r}
+employment <- employment %>%
+  rename('all_emp' = emp_combined,
+         'low_income_emp' = emp_combined_inclow,
+         'mid_income_emp' = emp_combined_incmiddle,
+         'high_income_emp' = emp_combined_inchigh,
+         'trade_trans_utili_emp' = emp_combined_ss40,
+         'professional_business_emp' = emp_combined_ss60,
+         'education_health_emp' = emp_combined_ss65,
+         'leisure_hospital_emp' = emp_combined_ss70)
+
+employment <- employment %>%
+  left_join(geoID, by = 'statefips') %>%
+  mutate(date = paste(month, "-", day, "-", year),
+         date = parse_date(date, format = "%m - %d - %Y"))
+```
+
+
+```{r}
+select <- dplyr::select
+consumer_spending <- consumer_spending %>%
+  left_join(geoID, by = "statefips") %>%
+  mutate(date = paste(month, "-", day, "-", year),
+         date = parse_date(date, format = "%m - %d - %Y")) %>%
+  relocate(date, .after = statefips, stateabbrev, statename, freq, accomodation, art_entertainment_recreation, all_category, merc_apparel_accessories, grocery, healthcare_social_assistant, transportation_warehousing, high_median_income, low_median_income, mid_median_income, retail_w_grocery, retail_no_grocery, provisional)
+
+# replacing . to NA - 
+# the period with . is used as the reference level of remaining observations
+glimpse(consumer_spending)
+
+consumer_spending %>% 
+  mutate(accomodation = as.numeric(accomodation),
+         art_entertainment_recreation = as.numeric(art_entertainment_recreation), 
+         all_category = as.numeric(all_category), 
+         merc_apparel_accessories = as.numeric(merc_apparel_accessories), 
+         grocery = as.numeric(grocery), 
+         healthcare_social_assistant = as.numeric(healthcare_social_assistant), 
+         transportation_warehousing = as.numeric(transportation_warehousing), 
+         high_median_income = as.numeric(high_median_income), 
+         low_median_income = as.numeric(low_median_income), 
+         mid_median_income = as.numeric(mid_median_income), 
+         retail_w_grocery = as.numeric(retail_w_grocery), 
+         retail_no_grocery = as.numeric(retail_no_grocery)) -> consumer_spending
+
+
+# job_posting <- job_posting %>%
+#   left_join(geoID, by = "statefips") %>%
+#   mutate(date = paste(month, "-", day_endofweek, "-", year),
+#          date = parse_date(date, format = "%m - %d - %Y")) %>%
+#   relocate(date, .after = statefips, stateabbrev, statename, all, manifacturing, financial, professional_service, education, leisure, no_exp, no_some_exp, some_exp, medium_exp, med_considerable_extensive_exp, considerable_exp, extensive_exp)
+
+small_business_open %>%
+  left_join(geoID, by = "statefips") %>%
+  mutate(date = paste(month, "-", day, "-", year),
+         date = parse_date(date, format = "%m - %d - %Y")) %>%
+  relocate(date, .after = statefips, stateabbrev, statename, all_revenue, high_income_revenue, low_incone_revenue, mid_income_revenue, transportation_revenue, professional_revenue, education_revenue, leisure_revenue, food_accomodation_revenue, retail_revenue, all_small_business, high_income_open, low_income_open, middle_income_open, transportation_open, professional_open, education_open, leisure_open, food_accomodation_open, retail_open)
+  
+covid %>%
+  left_join(geoID, by = "statefips") %>%
+  mutate(date = paste(month, "-", day, "-", year),
+         date = parse_date(date, format = "%m - %d - %Y")) %>%
+  relocate(date, .after = statefips, stateabbrev, statename, new_case_count, new_test_count, new_case_rate, new_death_rate, new_test_rate, case_count, case_rate, death_count, death_rate, test_count, test_rate)
+
+glimpse(covid)
+
+covid %>%
+  mutate(new_case_count = as.numeric(new_case_count),
+        new_test_count = as.numeric(new_test_count),
+        new_case_rate = as.numeric(new_case_rate),
+        new_death_rate = as.numeric(new_death_rate),
+        new_test_rate = as.numeric(new_test_rate),
+        case_count = as.numeric(case_count),
+        case_rate = as.numeric(case_rate),
+        death_count = as.numeric(death_count),
+        death_rate = as.numeric(death_rate),
+        test_count = as.numeric(test_count),
+        test_rate = as.numeric(test_rate)) -> covid
+
+
+unique(consumer_spending$stateabbrev)
+# unique(job_posting$stateabbrev)
+unique(small_business_open$stateabbrev)
+
+
+length(unique(consumer_spending$stateabbrev))
+# length(unique(job_posting$stateabbrev))
+length(unique(small_business_open$stateabbrev))
+length(unique(covid$stateabbrev))
+
+```
+
+
+```{r job_posting_Kate}
+# cleaning typo
+# job_posting %>%
+  # rename(manufacturing = "manifacturing") -> job_posting
+# 
+# # pivot_longer for industry
+# job_posting %>%
+#   pivot_longer(c(`all`, `manufacturing`, `financial`, `professional_service`, `education`, `leisure`), names_to = "industry", values_to = "job_posting_index") -> job_posting_longer
+# 
+# # pivot_longer for required experience
+# job_posting_longer %>%
+#   pivot_longer(c(`no_exp`, `no_some_exp`, `some_exp`, `medium_exp`, `med_considerable_extensive_exp`, `considerable_exp`, `extensive_exp`), names_to = "required_experience_level", values_to = "required_experience") -> job_posting_longer
+# 
+# 
+# job_posting_longer %>%
+#   group_by(stateabbrev, industry) %>%
+#   summarise(avg_job_index = mean(job_posting_index)) #can we compute mean for index? 
+# 
+# # Adding new dataset for more variables
+# # Bureau of Economic Analysis
+# # https://apps.bea.gov/itable/iTable.cfm?ReqID=70&step=1
+# 
+# personal_income <- read_csv("Per Capita Personal Income (2019).csv")
+# personal_expenditure <- read_csv("Per Capital Personal Expenditure (2019).csv")
+# 
+# personal_income_expenditure <- left_join(personal_income, personal_expenditure, by = "GeoName")
+# colnames(personal_income_expenditure)
+# 
+# personal_income_expenditure %>%
+#   select(GeoName, "2019.x", "2019.y") %>%
+#   rename(statename = "GeoName",
+#          state_household_income = "2019.x",
+#          state_expenditure = "2019.y") %>%
+#   filter(statename != "United States") -> pie
+# 
+# pie %>%
+#   select(state_household_income, state_expenditure) -> pie_all
+# 
+# pie %>%
+#   select(state_household_income) -> pie_income_cluster
+# 
+# pie %>%
+#   select(state_expenditure) -> pie_expenditure_cluster
+# 
+# 
+# # Normalize data
+# pie_all.norm <- scale(pie_all)
+# pie_income_cluster.norm <- scale(pie_income_cluster)
+# pie_expenditure_cluster.norm <- scale(pie_expenditure_cluster)
+# 
+# set.seed(1)
+# 
+# # All -- PCPI and Per Capita PCE Cluster
+# pie_all.norm.kmclusters <- kmeans(pie_all.norm, 3, nstart=10)
+# 
+# pie_all.norm.kmclusters$centers
+# pie_all.norm.kmclusters$size
+# 
+# 
+# # PCPI Cluster
+# pie_income_cluster.kmclusters <- kmeans(pie_income_cluster.norm, 3, nstart=10)
+# 
+# pie_income_cluster.kmclusters$centers
+# pie_income_cluster.kmclusters$size
+# 
+# 
+# 
+# # Per Capita PCE Cluster
+# pie_expenditure_cluster.kmclusters <- kmeans(pie_expenditure_cluster.norm, 3, nstart=10)
+# 
+# pie_expenditure_cluster.kmclusters$centers
+# pie_expenditure_cluster.kmclusters$size
+# 
+# # Add cluster assignment columns to pie and put result in new object called kmcluster.assignment
+# kmcluster.assignment <- cbind(pie, 
+#                               "state_income_cluster" = pie_income_cluster.kmclusters$cluster, 
+#                               "state_expenditure_cluster" = pie_expenditure_cluster.kmclusters$cluster)
+# 
+# 
+# 
+# kmcluster.assignment$state_income_cluster[kmcluster.assignment$state_income_cluster == 1] <- "high_income"
+# kmcluster.assignment$state_income_cluster[kmcluster.assignment$state_income_cluster == 2] <- "low_income"
+# kmcluster.assignment$state_income_cluster[kmcluster.assignment$state_income_cluster == 3] <- "medium_income"
+# 
+# kmcluster.assignment$state_expenditure_cluster[kmcluster.assignment$state_expenditure_cluster == 1] <- "medium_expenditure"
+# kmcluster.assignment$state_expenditure_cluster[kmcluster.assignment$state_expenditure_cluster == 2] <- "low_expenditure"
+# kmcluster.assignment$state_expenditure_cluster[kmcluster.assignment$state_expenditure_cluster == 3] <- "high_expenditure"
+# 
+# 
+# # integrating clusters to the job openings dataset
+# job_posting_cluster <- left_join(job_posting_longer, kmcluster.assignment, by = "statename")
+# 
+# # Try OLS - check assumption later
+# # Will add more predictors after integrating other tables
+# #lm.fit <- lm(job_posting_index ~ state_expenditure_cluster, state_income_cluster, data = job_posting_cluster)
+# #summary(lm.fit)
+
+
+```
+
+```{r}
+# job_posting_cluster %>%
+#   select(statename, state_household_income, state_income_cluster) %>%
+#   unique()%>%
+#   arrange(state_household_income)
+```
+
+```{r consumer_spending_Mune}
+
+consumer_spending_num <- consumer_spending %>% 
+  select(c(accomodation:provisional)) %>% 
+  na.omit(consumer_spending)
+
+boxplot(consumer_spending_num) #how should we deal with outliers?
+
+
+consumer_spending_num_cor <- cor(consumer_spending_num)
+
+corrplot(consumer_spending_num_cor, method = 'color', type = 'lower', order = 'hclust')
+
+```
+
+```{r small_business_open_Mergen}
+womply %>% 
+  rename('all_open' = merchants_all,
+         'high_income_open' = merchants_inchigh,
+         'middle_income_open' = merchants_incmiddle,
+         'low_income_open' = merchants_inclow,
+         'transportation_open' = merchants_ss40,
+         'professional_open' = merchants_ss60,
+         'education_open' = merchants_ss65,
+         'leisure_open' = merchants_ss70,
+         'retail_open' = merchants_retail,
+         'food_accomodation_open' = merchants_food_accommodation,
+         'all_revenue' = revenue_all,
+         'high_income_revenue' = revenue_inchigh,
+         'mid_income_revenue' = revenue_incmiddle,
+         'low_incone_revenue' = revenue_inclow,
+         'transportation_revenue' = revenue_ss40,
+         'professional_revenue' = revenue_ss60,
+         'education_revenue' = revenue_ss65,
+         'leisure_revenue' = revenue_ss70,
+         'retail_revenue' = revenue_retail,
+         'food_accomodation_revenue' = revenue_food_accommodation
+  ) %>%
+  unite(date, year, month, day, sep = ".", remove = FALSE) %>%
+  mutate(date = lubridate::ymd(date)) %>%
+  left_join(geoID, by = "statefips") %>%
+  relocate(statename:state_pop2019, .after = day) -> small_business_open
+
+small_business_open %>%
+  summarize(
+    across(.cols = all_revenue:retail_open, mean),
+  ) %>%
+  pivot_longer(cols = all_revenue:retail_open, names_to = "variables",
+               values_to = "mean") -> mean_small_business
+
+
+small_business_open %>%
+  summarize(
+    across(.cols = all_revenue:retail_open, sd),
+  ) %>%
+  pivot_longer(cols = all_revenue:retail_open, names_to = "variables",
+               values_to = "sd") -> sd_small_business
+
+mean_small_business %>%
+  left_join(sd_small_business, by = "variables") -> summary_small_business
+
+
+small_business_open %>%
+  select(-c(date:statefips)) %>%
+  select(where(is.numeric)) -> small_business_quant_only # In case other character variables are added
+```
+
+```{r covid}
+covid <- covid %>% unite(date, year, month, day, sep = ".", remove = FALSE) %>%
+  mutate(date = lubridate::ymd(date))
+```
+
+
+
+```{r}
+# introducing days in lockdown dataset
+days_in_lockdown <- read_csv("State Lockdown.csv")
+glimpse(days_in_lockdown)
+```
+
+```{r}
+days_in_lockdown %>%
+  rename(statename = "State Name",
+         stateabbrev = "GeoCode",
+         days_in_lockdown = "DaysInLockdown") %>%
+  select(stateabbrev, stayathome_start, statewide_stayathome_end, days_in_lockdown) -> lockdown
+glimpse(lockdown)
+```
+
+```{r}
+glimpse(small_business_open)
+
+left_join(small_business_open, lockdown, by = "stateabbrev") -> small_business_open_ld
+```
+
+```{r}
+# glimpse(job_posting)
+# 
+# left_join(job_posting, lockdown, by = "stateabbrev") -> job_posting_ld
+
+```
+
+```{r}
+glimpse(consumer_spending)
+
+left_join(consumer_spending, lockdown, by = "stateabbrev") -> consumer_spending_ld
+
+```
+
+```{r kate}
+left_join(employment, lockdown, by = "stateabbrev") -> employment_ld
+
+covid %>%
+  select(date, statefips, new_case_count, new_death_count) -> covid
+
+left_join(consumer_spending_ld, covid, by = c("date", "statefips"))-> consumer_spending_covid
+consumer_spending_covid %>%
+  filter(date >= "2020-01-22")-> consumer_spending_covid
+
+left_join(small_business_open_ld, covid, by = c("date", "statefips")) -> small_business_open_covid
+small_business_open_covid %>%
+  filter(date >= "2020-01-22")-> small_business_open_covid
+
+
+left_join(employment_ld, covid, by = c("date", "statefips")) -> employment_covid
+ employment_covid %>%
+  filter(date >= "2020-01-22") -> employment_covid
+ 
+names(consumer_spending_covid)
+names(small_business_open_covid)
+names(employment_covid)
+names(covid)
+```
+
+```{r regression_testing}
+# consumer_spending_covid %>% 
+#   filter(stateabbrev == "VA") -> VA_consumer
+# 
+# # OLS
+# lm.full <- lm(new_case_count ~ accomodation+art_entertainment_recreation+merc_apparel_accessories+healthcare_social_assistant+grocery+transportation_warehousing+high_median_income+low_median_income+mid_median_income, data = VA_consumer)
+# 
+# # Detected Heteroscedasticity
+# plot(lm.full)
+# bptest(lm.full, data = VA_consumer)
+# # In order to correct it, we will going to try Poisson, Stepwise, Centering, WLS, Log Linear, Polynomial
+# 
+# # Quasipoisson distribution
+# glm.full <- glm(new_case_count ~ accomodation+art_entertainment_recreation+merc_apparel_accessories+healthcare_social_assistant+grocery+transportation_warehousing+high_median_income+low_median_income+mid_median_income, data = VA_consumer, family = quasipoisson(link="log"))
+# 
+# summary(glm.full)
+# plot(glm.full)
+# 
+# # Stepwise Method (Variable selection)
+# null <- lm(new_case_count ~ 1, data = VA_consumer)
+# VA_consumer_backward <- step(lm.full, scope=list(lower=null, upper=lm.full), direction="both", test="F")
+# summary(VA_consumer_backward)
+# 
+# plot(VA_consumer_backward)
+# 
+# # Centering
+# VA_consumer %>%
+#   select(9:20, new_case_count) -> test_VA
+# VA_consumer_centered <- data.frame(scale(test_VA, center=T, scale=F))
+# 
+# lm.ols <- lm(new_case_count ~ ., data=VA_consumer_centered)
+# plot(lm.ols)
+# 
+# # WLS with centered data
+# lm.abs.res <- lm(abs(residuals(lm.ols)) ~ fitted(lm.ols))
+# wts <- 1/fitted(lm.abs.res)^2
+# lm.wls <- lm(new_case_count ~., data = VA_consumer_centered, weights=wts)
+# summary(lm.wls)
+# plot(lm.wls)
+# bptest(lm.wls, data = VA_consumer_centered)
+# 
+# # OLS with centered data
+# lm.center <- lm(new_case_count ~ ., data=VA_consumer_centered)
+# summary(lm.center)
+# plot(lm.center)
+# bptest(lm.center, data=VA_consumer_centered)
+# 
+# # Trying centered OLS with random sample (n=100)
+# VA_consumer_centered %>% slice_sample(n = 100) -> sample_centered
+# lm.center.sample <- lm(new_case_count ~ ., data=sample_centered)
+# summary(lm.center.sample)
+# bptest(lm.center.sample, data=sample_centered)
+# plot(lm.center.sample)
+# 
+# # Log Linear Model (log y)
+# log.linear <- lm(log(new_case_count) ~ accomodation +art_entertainment_recreation+merc_apparel_accessories+healthcare_social_assistant+grocery+transportation_warehousing+high_median_income+low_median_income+mid_median_income, data = test_VA2)
+# 
+# summary(log.linear)
+# bptest(log.linear, data = test_VA2)
+# plot(log.linear)
+# 
+# # For detecting polynomial degree, tried boxcox
+# VA_consumer %>%
+#   filter(new_case_count > 0) -> test_VA2
+# 
+# lm.positive<- lm(new_case_count ~ accomodation+art_entertainment_recreation+merc_apparel_accessories+healthcare_social_assistant+grocery+transportation_warehousing+high_median_income+low_median_income+mid_median_income+days_in_lockdown, data = test_VA2)
+# 
+# MASS::boxcox(lm.positive)
+# 
+# # WE need to try timeseries
+```
+
+
+```{r time_series_consumer_spending_covid}
+# grocery
+consumer_spending_covid %>%
+  select(date, stateabbrev, grocery) %>%
+  group_by(date) %>%
+  summarise(avg_grocery_spending = mean(grocery)) -> avg_grocery
+
+consumer_spending_covid %>%
+  select(date, stateabbrev, new_case_count) %>%
+  group_by(date) %>%
+  summarise(sum_case = sum(new_case_count)) -> sum_case
+
+full_join(avg_grocery, sum_case, by = "date") -> grocery_with_covid
+
+
+grocery_with_covid %>%
+  mutate(covid_percent_change = NA) -> grocery_with_covid
+
+grocery_with_covid$covid_percent_change[1] <- 0
+
+for(i in 2:nrow(grocery_with_covid)) {
+  grocery_with_covid$covid_percent_change[i] <- ((grocery_with_covid$sum_case[i] - grocery_with_covid$sum_case[i-1]) / grocery_with_covid$sum_case[i-1])} 
+
+
+grocery_with_covid %>%
+  select(-sum_case) %>%
+  gather(key="var", value = "value", -date) -> grocery_with_covid
+
+grocery_with_covid %>%
+  filter(date > "2020-02-29") %>%
+ggplot(aes(x=date, y=value)) +
+  geom_line(aes(color=var)) +
+  scale_color_manual(values = c("tomato2", "steelblue"),labels=c("Avg Grocery Spending", "Covid Case Percent Change"))+
+  ggtitle("Change in grocery spending vs new covid cases percent change") +
+  xlab("Date") +
+  ylab("Variable Change")+
+  labs(color = "Variable")
+
+
+
+# accomodation
+consumer_spending_covid %>%
+  select(date, stateabbrev, accomodation) %>%
+  group_by(date) %>%
+  summarise(avg_grocery_spending = mean(accomodation)) -> avg_accomodation
+
+consumer_spending_covid %>%
+  select(date, stateabbrev, new_case_count) %>%
+  group_by(date) %>%
+  summarise(sum_case = sum(new_case_count)) -> sum_case
+
+full_join(avg_accomodation, sum_case, by = "date") -> accomodation_with_covid
+
+
+accomodation_with_covid %>%
+  mutate(covid_percent_change = NA) -> accomodation_with_covid
+
+accomodation_with_covid$covid_percent_change[1] <- 0
+
+for(i in 2:nrow(accomodation_with_covid)) {
+  accomodation_with_covid$covid_percent_change[i] <- ((accomodation_with_covid$sum_case[i] - accomodation_with_covid$sum_case[i-1]) / accomodation_with_covid$sum_case[i-1])} 
+
+
+accomodation_with_covid %>%
+  select(-sum_case) %>%
+  gather(key="var", value = "value", -date) -> accomodation_with_covid
+
+accomodation_with_covid %>%
+  filter(date > "2020-02-29") %>%
+ggplot(aes(x=date, y=value)) +
+  geom_line(aes(color=var)) +
+  scale_color_manual(values = c("tomato2", "steelblue"),labels=c("Avg Accomodation Spending", "Covid Case Percent Change"))+
+  ggtitle("Change in accomodation spending vs new covid cases percent change") +
+  xlab("Date") +
+  ylab("Variable Change")+
+  labs(color = "Variable")
+
+
+# merc_apparel_accessories
+consumer_spending_covid %>%
+  select(date, stateabbrev, merc_apparel_accessories) %>%
+  group_by(date) %>%
+  summarise(avg_grocery_spending = mean(merc_apparel_accessories)) -> avg_merc_apparel_accessories
+
+consumer_spending_covid %>%
+  select(date, stateabbrev, new_case_count) %>%
+  group_by(date) %>%
+  summarise(sum_case = sum(new_case_count)) -> sum_case
+
+full_join(avg_merc_apparel_accessories, sum_case, by = "date") -> merc_apparel_accessories_with_covid
+
+
+merc_apparel_accessories_with_covid %>%
+  mutate(covid_percent_change = NA) -> merc_apparel_accessories_with_covid
+
+merc_apparel_accessories_with_covid$covid_percent_change[1] <- 0
+
+for(i in 2:nrow(merc_apparel_accessories_with_covid)) {
+  merc_apparel_accessories_with_covid$covid_percent_change[i] <- ((merc_apparel_accessories_with_covid$sum_case[i] - merc_apparel_accessories_with_covid$sum_case[i-1]) / merc_apparel_accessories_with_covid$sum_case[i-1])} 
+
+
+merc_apparel_accessories_with_covid %>%
+  select(-sum_case) %>%
+  gather(key="var", value = "value", -date) -> merc_apparel_accessories_with_covid
+
+merc_apparel_accessories_with_covid %>%
+  filter(date > "2020-02-29") %>%
+ggplot(aes(x=date, y=value)) +
+  geom_line(aes(color=var)) +
+  scale_color_manual(values = c("tomato2", "steelblue"),labels=c("Avg Apparel&Accessories", "Covid Case Percent Change"))+
+  ggtitle("Change in Apparel&Accessories spending vs new covid cases percent change") +
+  xlab("Date") +
+  ylab("Variable Change")+
+  labs(color = "Variable")
+
+
+# Retail_no_grocery
+consumer_spending_covid %>%
+  select(date, stateabbrev, retail_no_grocery) %>%
+  group_by(date) %>%
+  summarise(avg_retail_no_grocery = mean(retail_no_grocery)) -> avg_retail_no_grocery
+
+consumer_spending_covid %>%
+  select(date, stateabbrev, new_case_count) %>%
+  group_by(date) %>%
+  summarise(sum_case = sum(new_case_count)) -> sum_case
+
+full_join(avg_retail_no_grocery, sum_case, by = "date") -> avg_retail_no_grocery_with_covid
+
+
+avg_retail_no_grocery_with_covid %>%
+  mutate(covid_percent_change = NA) -> avg_retail_no_grocery_with_covid
+
+avg_retail_no_grocery_with_covid$covid_percent_change[1] <- 0
+
+for(i in 2:nrow(avg_retail_no_grocery_with_covid)) {
+  avg_retail_no_grocery_with_covid$covid_percent_change[i] <- ((avg_retail_no_grocery_with_covid$sum_case[i] - avg_retail_no_grocery_with_covid$sum_case[i-1]) / avg_retail_no_grocery_with_covid$sum_case[i-1])} 
+
+
+avg_retail_no_grocery_with_covid %>%
+  select(-sum_case) %>%
+  gather(key="var", value = "value", -date) -> avg_retail_no_grocery_with_covid
+
+avg_retail_no_grocery_with_covid %>%
+  filter(date > "2020-02-29") %>%
+ggplot(aes(x=date, y=value)) +
+  geom_line(aes(color=var)) +
+  scale_color_manual(values = c("tomato2", "steelblue"),labels=c("Avg Retail Spending without Grocery", "Covid Case Percent Change"))+
+  ggtitle("Change in Retail Spending without Grocery vs new covid cases percent change") +
+  xlab("Date") +
+  ylab("Variable Change")+
+  labs(color = "Variable")
+
+
+# Transportation & Warehousing
+consumer_spending_covid %>%
+  select(date, stateabbrev, transportation_warehousing) %>%
+  group_by(date) %>%
+  summarise(avg_transportation_warehousing = mean(transportation_warehousing)) -> avg_transportation_warehousing
+
+consumer_spending_covid %>%
+  select(date, stateabbrev, new_case_count) %>%
+  group_by(date) %>%
+  summarise(sum_case = sum(new_case_count)) -> sum_case
+
+full_join(avg_transportation_warehousing, sum_case, by = "date") -> avg_transportation_warehousing_with_covid
+
+
+avg_transportation_warehousing_with_covid %>%
+  mutate(covid_percent_change = NA) -> avg_transportation_warehousing_with_covid
+
+avg_transportation_warehousing_with_covid$covid_percent_change[1] <- 0
+
+for(i in 2:nrow(avg_transportation_warehousing_with_covid)) {
+  avg_transportation_warehousing_with_covid$covid_percent_change[i] <- ((avg_transportation_warehousing_with_covid$sum_case[i] - avg_transportation_warehousing_with_covid$sum_case[i-1]) / avg_transportation_warehousing_with_covid$sum_case[i-1])} 
+
+
+avg_transportation_warehousing_with_covid %>%
+  select(-sum_case) %>%
+  gather(key="var", value = "value", -date) -> avg_transportation_warehousing_with_covid
+
+avg_transportation_warehousing_with_covid %>%
+  filter(date > "2020-02-29") %>%
+ggplot(aes(x=date, y=value)) +
+  geom_line(aes(color=var)) +
+  scale_color_manual(values = c("tomato2", "steelblue"),labels=c("Avg Transportation and Warehousing Spending", "Covid Case Percent Change"))+
+  ggtitle("Change in Transportation and Warehousing Spending vs new covid cases percent change") +
+  xlab("Date") +
+  ylab("Variable Change")+
+  labs(color = "Variable")
+
+avg_transportation_warehousing_with_covid
+```
+
+
+
+
+```{r time_series_small_business_open_covid}
+# leisure
+small_business_open_covid %>%
+  select(date, stateabbrev, leisure_revenue) %>%
+  group_by(date) %>%
+  summarise(avg_leisure_revenue = mean(leisure_revenue)) -> avg_leisure_revenue
+
+small_business_open_covid %>%
+  select(date, stateabbrev, new_case_count) %>%
+  group_by(date) %>%
+  summarise(sum_case = sum(new_case_count)) -> sum_case
+
+full_join(avg_leisure_revenue, sum_case, by = "date") -> leisure_with_covid
+
+
+leisure_with_covid %>%
+  mutate(covid_percent_change = NA) -> leisure_with_covid
+
+leisure_with_covid$covid_percent_change[1] <- 0
+
+for(i in 2:nrow(leisure_with_covid)) {
+  leisure_with_covid$covid_percent_change[i] <- ((leisure_with_covid$sum_case[i] - leisure_with_covid$sum_case[i-1]) / leisure_with_covid$sum_case[i-1])} 
+
+
+leisure_with_covid %>%
+  select(-sum_case) %>%
+  gather(key="var", value = "value", -date) -> leisure_with_covid
+
+leisure_with_covid %>%
+  filter(date > "2020-02-29") %>%
+ggplot(aes(x=date, y=value)) +
+  geom_line(aes(color=var)) +
+  scale_color_manual(values = c("tomato2", "steelblue"),labels=c("Avg % Change open leisure business", "Covid Case % Change"))+
+  ggtitle("Change in % open leisure business vs new covid cases % change") +
+  xlab("Date") +
+  ylab("Variable Change")+
+  labs(color = "Variable")
+
+# education
+small_business_open_covid %>%
+  select(date, stateabbrev, education_revenue) %>%
+  group_by(date) %>%
+  summarise(avg_education_revenue = mean(education_revenue)) -> avg_education
+
+small_business_open_covid %>%
+  select(date, stateabbrev, new_case_count) %>%
+  group_by(date) %>%
+  summarise(sum_case = sum(new_case_count)) -> sum_case
+
+full_join(avg_education, sum_case, by = "date") -> education_with_covid
+
+
+education_with_covid %>%
+  mutate(covid_percent_change = NA) -> education_with_covid
+
+education_with_covid$covid_percent_change[1] <- 0
+
+for(i in 2:nrow(education_with_covid)) {
+  education_with_covid$covid_percent_change[i] <- ((education_with_covid$sum_case[i] - education_with_covid$sum_case[i-1]) / education_with_covid$sum_case[i-1])} 
+
+
+education_with_covid %>%
+  select(-sum_case) %>%
+  gather(key="var", value = "value", -date) -> education_with_covid
+
+education_with_covid %>%
+  filter(date > "2020-02-29") %>%
+  ggplot(aes(x=date, y=value)) +
+  geom_line(aes(color=var)) +
+  scale_color_manual(values = c("tomato2", "steelblue"),labels=c("Avg % Change open education business", "Covid Case % Change"))+
+  ggtitle("Change in % open education business vs new covid cases % change") +
+  xlab("Date") +
+  ylab("Variable Change")+
+  labs(color = "Variable")
+
+
+# food_accomodation
+small_business_open_covid %>%
+  select(date, stateabbrev, food_accomodation_open) %>%
+  group_by(date) %>%
+  summarise(avg_food_accomodation = mean(food_accomodation_open)) -> avg_food_accomodation
+
+small_business_open_covid %>%
+  select(date, stateabbrev, new_case_count) %>%
+  group_by(date) %>%
+  summarise(sum_case = sum(new_case_count)) -> sum_case
+
+full_join(avg_food_accomodation, sum_case, by = "date") -> food_accomodation_with_covid
+
+
+food_accomodation_with_covid %>%
+  mutate(covid_percent_change = NA) -> food_accomodation_with_covid
+
+food_accomodation_with_covid$covid_percent_change[1] <- 0
+
+for(i in 2:nrow(food_accomodation_with_covid)) {
+  food_accomodation_with_covid$covid_percent_change[i] <- ((food_accomodation_with_covid$sum_case[i] - food_accomodation_with_covid$sum_case[i-1]) / food_accomodation_with_covid$sum_case[i-1])} 
+
+
+food_accomodation_with_covid %>%
+  select(-sum_case) %>%
+  gather(key="var", value = "value", -date) -> food_accomodation_with_covid
+
+food_accomodation_with_covid %>%
+  filter(date > "2020-02-29") %>%
+  ggplot(aes(x=date, y=value)) +
+  geom_line(aes(color=var)) +
+  scale_color_manual(values = c("tomato2", "steelblue"),labels=c("Avg % Change open food&accomodation business", "Covid Case % Change"))+
+  ggtitle("Change in % open food&accomodation business vs new covid cases % change") +
+  xlab("Date") +
+  ylab("Variable Change")+
+  labs(color = "Variable")
+```
+
+```{r}
+names(employment_covid)
+```
+
+```{r time_series_employment_covid}
+# employment dataset has all the variables in characters and there are so many NAs values,
+# so we have to discuss about it first for further analysis
+employment_covid$leisure_hospital_emp <- as.double(employment_covid$leisure_hospital_emp)
+
+# leisure
+employment_covid %>%
+  select(date, stateabbrev, leisure_hospital_emp) %>%
+  group_by(date) %>%
+  summarise(avg_leisure_hospital_emp = mean(leisure_hospital_emp)) -> avg_leisure_hospital_emp
+
+employment_covid %>%
+  select(date, stateabbrev, new_case_count) %>%
+  group_by(date) %>%
+  summarise(sum_case = sum(new_case_count)) -> sum_case
+
+full_join(avg_leisure_hospital_emp, sum_case, by = "date") -> avg_leisure_hospital_emp_covid
+
+
+avg_leisure_hospital_emp_covid %>%
+  mutate(covid_percent_change = NA) -> avg_leisure_hospital_emp_covid
+
+avg_leisure_hospital_emp_covid$covid_percent_change[1] <- 0
+
+for(i in 2:nrow(avg_leisure_hospital_emp_covid)) {
+  avg_leisure_hospital_emp_covid$covid_percent_change[i] <- ((avg_leisure_hospital_emp_covid$sum_case[i] - avg_leisure_hospital_emp_covid$sum_case[i-1]) / avg_leisure_hospital_emp_covid$sum_case[i-1])} 
+
+
+avg_leisure_hospital_emp_covid %>%
+  select(-sum_case) %>%
+  gather(key="var", value = "value", -date) -> avg_leisure_hospital_emp_covid
+
+avg_leisure_hospital_emp_covid %>%
+  filter(date > "2020-02-29") %>%
+  ggplot(aes(x=date, y=value)) +
+  geom_line(aes(color=var)) +
+  scale_color_manual(values = c("tomato2", "steelblue"),labels=c("Avg level of leisure hospital employment", "Covid Case % Change"))+
+  ggtitle("Change in level of leisure hospital employment vs new covid cases % change") +
+  xlab("Date") +
+  ylab("Variable Change")+
+  labs(color = "Variable")
+
+```
